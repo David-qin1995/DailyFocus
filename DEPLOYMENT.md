@@ -406,3 +406,4 @@ CREATE DATABASE ai_assistant CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 开发完成时间: 2025年12月
 版本: v1.0.0
 
+
