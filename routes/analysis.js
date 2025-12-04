@@ -100,13 +100,20 @@ router.post('/generate', asyncHandler(async (req, res) => {
       throw new Error('分析结果格式错误');
     }
 
+    // 生成报告标题
+    const reportTitle = await generateReportTitle(summary, type);
+    console.log(`📝 生成报告标题: ${reportTitle}`);
+
     // 保存分析报告
     const report = await AnalysisReport.create({
       userId,
       periodType: type,
       startAt: new Date(startAt),
       endAt: new Date(endAt),
-      summary,
+      summary: {
+        ...summary,
+        title: reportTitle  // 将标题添加到summary中
+      },
       rawModelInfo: {
         model: aiResponse.model,
         usage: aiResponse.usage,
@@ -183,13 +190,23 @@ router.get('/reports', asyncHandler(async (req, res) => {
     order: [['createdAt', 'DESC']],
     limit: parseInt(limit),
     offset: offset,
-    attributes: ['id', 'periodType', 'startAt', 'endAt', 'createdAt']
+    attributes: ['id', 'periodType', 'startAt', 'endAt', 'summary', 'createdAt']
   });
+
+  // 提取标题
+  const reportsWithTitle = reports.map(report => ({
+    id: report.id,
+    periodType: report.periodType,
+    startAt: report.startAt,
+    endAt: report.endAt,
+    createdAt: report.createdAt,
+    title: report.summary?.title || null
+  }));
 
   res.json({
     code: 0,
     data: {
-      reports,
+      reports: reportsWithTitle,
       pagination: {
         total: count,
         page: parseInt(page),
@@ -316,6 +333,68 @@ function updateOrAddTrait(traitsArray, name, increment) {
       score: 0.5 + increment
     });
   }
+}
+
+/**
+ * 根据分析结果生成报告标题
+ */
+async function generateReportTitle(summary, periodType) {
+  try {
+    // 提取关键信息
+    const mainTopics = summary.questions && summary.questions.length > 0
+      ? summary.questions.slice(0, 2).map(q => q.topic).join('、')
+      : '';
+    
+    const strengths = summary.strengths && summary.strengths.length > 0
+      ? summary.strengths[0]
+      : '';
+
+    // 构建提示词
+    const prompt = `请根据以下分析摘要，生成一个简洁、准确的报告标题（8-15个字）。
+
+周期类型: ${periodType === 'weekly' ? '周报告' : '月报告'}
+主要关注: ${mainTopics || '个人成长'}
+主要优点: ${strengths || '自我提升'}
+
+要求：
+1. 标题要简洁有力，突出核心主题
+2. 8-15个字
+3. 不要加引号
+4. 直接输出标题，不要其他内容
+
+示例：
+- "职业发展与自我认知"
+- "时间管理与执行力提升"
+- "人际关系与情绪管理"`;
+
+    const aiResponse = await chatCompletion([
+      {
+        role: 'user',
+        content: prompt
+      }
+    ], {
+      temperature: 0.7,
+      max_tokens: 50
+    });
+
+    if (aiResponse.success) {
+      let title = aiResponse.content.trim();
+      // 移除可能的引号
+      title = title.replace(/^["']|["']$/g, '');
+      // 限制长度
+      if (title.length > 20) {
+        title = title.substring(0, 20);
+      }
+      return title;
+    }
+  } catch (error) {
+    console.error('生成报告标题失败:', error);
+  }
+
+  // 失败时的默认标题
+  const typeText = periodType === 'weekly' ? '周' : '月';
+  const date = new Date().toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' });
+  return `${date}·${typeText}度成长报告`;
 }
 
 module.exports = router;

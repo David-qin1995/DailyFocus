@@ -140,9 +140,17 @@
   color: #8a8a8a;
 }
 
+.report-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #333333;
+  margin-bottom: 12rpx;
+  line-height: 1.4;
+}
+
 .report-period {
-  font-size: 26rpx;
-  color: #666666;
+  font-size: 24rpx;
+  color: #999999;
   margin-bottom: 20rpx;
 }
 

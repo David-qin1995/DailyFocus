@@ -56,6 +56,10 @@
           <view class="report-date">{{formatDate(item.createdAt)}}</view>
         </view>
         
+        <view class="report-title" wx:if="{{item.title}}">
+          {{item.title}}
+        </view>
+        
         <view class="report-period">
           {{formatDate(item.startAt)}} ~ {{formatDate(item.endAt)}}
         </view>
