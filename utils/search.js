@@ -53,33 +53,61 @@ async function serpApiSearch(query, count = 5) {
   try {
     const apiKey = process.env.SERPAPI_KEY;
     if (!apiKey) {
-      console.warn('SerpAPI Key 未配置');
+      console.warn('⚠️ SerpAPI Key 未配置');
       return null;
     }
 
+    console.log(`🔍 正在使用 SerpAPI 搜索: "${query}"`);
+    console.log(`📌 API Key: ${apiKey.substring(0, 10)}...`);
+
+    const params = {
+      q: query,
+      api_key: apiKey,
+      engine: 'google',
+      num: count,
+      hl: 'zh-cn',
+      gl: 'cn',
+      tbm: 'nws'  // 新闻搜索
+    };
+
+    console.log('📤 请求参数:', { ...params, api_key: '***' });
+
     const response = await axios.get('https://serpapi.com/search', {
-      params: {
-        q: query,
-        api_key: apiKey,
-        engine: 'google',
-        num: count,
-        hl: 'zh-cn',
-        gl: 'cn'
-      },
-      timeout: 10000
+      params: params,
+      timeout: 15000
     });
 
-    if (response.data && response.data.organic_results) {
-      return response.data.organic_results.map(item => ({
+    console.log('📥 SerpAPI响应状态:', response.status);
+    console.log('📊 返回数据:', JSON.stringify(response.data, null, 2).substring(0, 500));
+
+    // 优先使用新闻结果
+    if (response.data && response.data.news_results && response.data.news_results.length > 0) {
+      console.log(`✅ 找到 ${response.data.news_results.length} 条新闻结果`);
+      return response.data.news_results.map(item => ({
         title: item.title,
         url: item.link,
-        snippet: item.snippet
+        snippet: item.snippet || item.title,
+        date: item.date || '最近'
       }));
     }
 
-    return [];
+    // 其次使用普通搜索结果
+    if (response.data && response.data.organic_results && response.data.organic_results.length > 0) {
+      console.log(`✅ 找到 ${response.data.organic_results.length} 条搜索结果`);
+      return response.data.organic_results.map(item => ({
+        title: item.title,
+        url: item.link,
+        snippet: item.snippet || item.title
+      }));
+    }
+
+    console.log('⚠️ SerpAPI 未返回有效结果');
+    return null;
   } catch (error) {
-    console.error('SerpAPI搜索失败:', error.message);
+    console.error('❌ SerpAPI搜索失败:', error.message);
+    if (error.response) {
+      console.error('错误响应:', error.response.status, error.response.data);
+    }
     return null;
   }
 }
@@ -158,40 +186,63 @@ async function duckDuckGoSearch(query, count = 5) {
  * 通用搜索函数，自动尝试多个搜索引擎
  */
 async function webSearch(query, count = 5) {
-  console.log(`开始搜索: ${query}`);
+  console.log(`\n========== 开始搜索 ==========`);
+  console.log(`🔎 搜索关键词: "${query}"`);
+  console.log(`📊 请求结果数: ${count}`);
+  console.log(`🔧 环境变量检查:`);
+  console.log(`   - SERPAPI_KEY: ${process.env.SERPAPI_KEY ? '✅ 已配置' : '❌ 未配置'}`);
+  console.log(`   - BING_SEARCH_KEY: ${process.env.BING_SEARCH_KEY ? '✅ 已配置' : '❌ 未配置'}`);
 
   // 按优先级尝试不同的搜索引擎
   let results = null;
 
   // 1. 尝试 SerpAPI (Google)
   if (process.env.SERPAPI_KEY) {
+    console.log('\n📍 尝试方案1: SerpAPI (Google)');
     results = await serpApiSearch(query, count);
     if (results && results.length > 0) {
-      console.log(`使用 SerpAPI 找到 ${results.length} 个结果`);
+      console.log(`✅ SerpAPI 成功! 找到 ${results.length} 个结果`);
+      console.log(`========== 搜索完成 ==========\n`);
       return { source: 'Google', results };
+    } else {
+      console.log('⚠️ SerpAPI 未返回结果，尝试下一个方案...');
     }
+  } else {
+    console.log('\n⏭️ 跳过 SerpAPI (未配置)');
   }
 
   // 2. 尝试 Bing Search
   if (process.env.BING_SEARCH_KEY) {
+    console.log('\n📍 尝试方案2: Bing Search');
     results = await bingSearch(query, count);
     if (results && results.length > 0) {
-      console.log(`使用 Bing 找到 ${results.length} 个结果`);
+      console.log(`✅ Bing Search 成功! 找到 ${results.length} 个结果`);
+      console.log(`========== 搜索完成 ==========\n`);
       return { source: 'Bing', results };
+    } else {
+      console.log('⚠️ Bing Search 未返回结果，尝试下一个方案...');
     }
+  } else {
+    console.log('\n⏭️ 跳过 Bing Search (未配置)');
   }
 
   // 3. 尝试 DuckDuckGo (无需API Key)
+  console.log('\n📍 尝试方案3: DuckDuckGo (免费)');
   results = await duckDuckGoSearch(query, count);
   if (results && results.length > 0) {
-    console.log(`使用 DuckDuckGo 找到 ${results.length} 个结果`);
+    console.log(`✅ DuckDuckGo 成功! 找到 ${results.length} 个结果`);
+    console.log(`========== 搜索完成 ==========\n`);
     return { source: 'DuckDuckGo', results };
+  } else {
+    console.log('⚠️ DuckDuckGo 未返回结果');
   }
 
   // 4. 最后使用模拟搜索（用于测试）
-  console.log('所有真实搜索引擎都未能返回结果，使用模拟搜索');
+  console.log('\n📍 使用方案4: 模拟搜索（兜底）');
+  console.log('❌ 所有真实搜索引擎都未能返回结果');
   results = await baiduSearch(query, count);
-  return { source: '模拟搜索（请配置API Key）', results };
+  console.log(`========== 搜索完成 ==========\n`);
+  return { source: '模拟搜索（请检查API配置）', results };
 }
 
 /**
