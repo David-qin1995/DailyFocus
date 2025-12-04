@@ -126,9 +126,16 @@ router.post('/send', asyncHandler(async (req, res) => {
           
           // 将搜索结果添加到上下文
           const searchContext = formatSearchResults(searchResults);
+          const now = new Date();
+          const currentDate = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日`;
+          
           messages.push({
             role: 'system',
-            content: `以下是从${searchResults.source}获取的最新搜索结果，请基于这些实时信息回答用户的问题：${searchContext}\n\n重要：请在回答中引用这些搜索结果，并特别注明这些是来自搜索引擎的最新信息。`
+            content: `今天是${currentDate}。以下是从${searchResults.source}获取的最新搜索结果：${searchContext}\n\n重要提示：
+1. 这些是实时搜索的最新信息
+2. 请在回答中明确标注每条信息的发布时间
+3. 如果搜索结果中有"X小时前"、"昨天"等相对时间，请换算成具体日期
+4. 回答要包含时间线信息，让用户清楚了解事件的时效性`
           });
         } else {
           console.log('⚠️ 搜索未返回有效结果');
@@ -156,14 +163,25 @@ router.post('/send', asyncHandler(async (req, res) => {
     if (!aiResponse.success) {
       console.error('❌ AI调用失败:', aiResponse.error);
       
-      // 如果是内容风险，尝试简化消息后重试
-      if (aiResponse.error.includes('敏感内容') || aiResponse.error.includes('Content Exists Risk')) {
+      // 如果是内容风险，尝试用最简化的消息重试
+      if (aiResponse.error.includes('敏感内容') || 
+          aiResponse.error.includes('Content Exists Risk') || 
+          aiResponse.error.includes('content_policy')) {
         console.log('🔄 检测到内容风险，尝试简化消息后重试...');
         
-        // 移除搜索结果，只保留用户消息
-        const simpleMessages = messages.filter(msg => 
-          msg.role === 'user' || (msg.role === 'system' && !msg.content.includes('搜索结果'))
-        );
+        // 使用最简化的消息：只有用户当前的问题
+        const simpleMessages = [
+          {
+            role: 'system',
+            content: '你是一个有帮助的AI助手。'
+          },
+          {
+            role: 'user',
+            content: content.trim()
+          }
+        ];
+        
+        console.log('📤 重试消息:', JSON.stringify(simpleMessages, null, 2));
         
         const retryResponse = await chatCompletion(simpleMessages, {
           temperature: 0.7,
@@ -178,7 +196,13 @@ router.post('/send', asyncHandler(async (req, res) => {
           aiResponse.usage = retryResponse.usage;
           aiResponse.model = retryResponse.model;
         } else {
-          throw new Error(retryResponse.error);
+          console.error('❌ 重试仍然失败:', retryResponse.error);
+          // 返回友好的错误消息，而不是抛出异常
+          res.status(200).json({
+            code: 500,
+            message: '抱歉，这个问题可能触发了内容审核。建议：1) 换个表达方式 2) 创建新会话重试'
+          });
+          return;
         }
       } else {
         throw new Error(aiResponse.error);

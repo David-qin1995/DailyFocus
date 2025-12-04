@@ -60,15 +60,26 @@ async function serpApiSearch(query, count = 5) {
     console.log(`🔍 正在使用 SerpAPI 搜索: "${query}"`);
     console.log(`📌 API Key: ${apiKey.substring(0, 10)}...`);
 
+    // 智能判断是否使用新闻搜索
+    const newsKeywords = ['新闻', '最新', '消息', '报道', '今天', '昨天', '最近'];
+    const useNewsSearch = newsKeywords.some(kw => query.includes(kw));
+    
     const params = {
       q: query,
       api_key: apiKey,
       engine: 'google',
       num: count,
       hl: 'zh-cn',
-      gl: 'cn',
-      tbm: 'nws'  // 新闻搜索
+      gl: 'cn'
     };
+    
+    // 如果是新闻相关查询，使用新闻搜索
+    if (useNewsSearch) {
+      params.tbm = 'nws';
+      console.log('📰 使用新闻搜索模式');
+    } else {
+      console.log('🔍 使用普通搜索模式');
+    }
 
     console.log('📤 请求参数:', { ...params, api_key: '***' });
 
@@ -254,12 +265,18 @@ function formatSearchResults(searchData) {
   }
 
   const { source, results } = searchData;
-  let text = `\n\n**搜索结果 (来自 ${source}):**\n\n`;
+  const now = new Date();
+  const currentDate = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日`;
+  
+  let text = `\n\n**搜索结果 (来自 ${source}, 搜索时间: ${currentDate}):**\n\n`;
 
   results.forEach((result, index) => {
     text += `${index + 1}. **${result.title}**\n`;
+    if (result.date) {
+      text += `   📅 发布时间: ${result.date}\n`;
+    }
     text += `   ${result.snippet}\n`;
-    text += `   来源: ${result.url}\n\n`;
+    text += `   🔗 来源: ${result.url}\n\n`;
   });
 
   return text;
