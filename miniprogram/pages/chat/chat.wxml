@@ -1,54 +1,156 @@
 <view class="chat-container">
-  <!-- 消息列表 -->
-  <scroll-view class="messages-view" scroll-y scroll-into-view="{{scrollIntoView}}" scroll-with-animation>
-    <view class="message-item" wx:for="{{messages}}" wx:key="index" id="msg-{{index}}">
-      <!-- 用户消息 -->
-      <view wx:if="{{item.role === 'user'}}" class="message-wrapper user-message">
-        <view class="message-bubble user-bubble">
-          <text class="message-text">{{item.content}}</text>
-        </view>
-      </view>
-
-      <!-- AI消息 -->
-      <view wx:else class="message-wrapper assistant-message">
-        <image class="avatar" src="../../images/ai-avatar.png" mode="aspectFill"></image>
-        <view class="message-bubble assistant-bubble">
-          <text class="message-text">{{item.content}}</text>
-        </view>
+  <!-- 侧边栏 -->
+  <view class="sidebar {{showSidebar ? 'show' : ''}}">
+    <!-- 侧边栏头部 -->
+    <view class="sidebar-header">
+      <view class="app-title">AI助手</view>
+      <view class="new-chat-btn" bindtap="createNewChat">
+        <text class="icon">✚</text>
+        <text>新对话</text>
       </view>
     </view>
 
-    <!-- 加载中提示 -->
-    <view wx:if="{{loading}}" class="loading-wrapper">
-      <view class="loading-dots">
-        <view class="dot"></view>
-        <view class="dot"></view>
-        <view class="dot"></view>
-      </view>
-    </view>
-  </scroll-view>
-
-  <!-- 输入框 -->
-  <view class="input-wrapper">
-    <view class="input-container">
-      <textarea 
-        class="input-text" 
-        placeholder="说说你的想法..." 
-        value="{{inputText}}"
-        bindinput="onInput"
-        maxlength="1000"
-        auto-height
-        show-confirm-bar="{{false}}"
-      />
-      <button 
-        class="send-btn {{inputText ? 'active' : ''}}" 
-        bindtap="sendMessage"
-        disabled="{{loading}}"
+    <!-- 会话列表 -->
+    <scroll-view class="conversations-list" scroll-y>
+      <view 
+        class="conversation-item {{currentConversationId === item.id ? 'active' : ''}}"
+        wx:for="{{conversations}}"
+        wx:key="id"
+        bindtap="switchConversation"
+        bindlongpress="showConversationMenu"
+        data-id="{{item.id}}"
+        data-title="{{item.title}}"
       >
-        发送
-      </button>
+        <view class="conversation-content">
+          <text class="conversation-icon">💬</text>
+          <view class="conversation-info">
+            <text class="conversation-title">{{item.title}}</text>
+            <text class="conversation-time">{{item.timeText}}</text>
+          </view>
+        </view>
+        <view class="conversation-actions">
+          <view 
+            class="delete-btn" 
+            catchtap="deleteConversation"
+            data-id="{{item.id}}"
+          >
+            🗑️
+          </view>
+        </view>
+      </view>
+
+      <view wx:if="{{conversations.length === 0}}" class="empty-conversations">
+        <text>暂无对话</text>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 主聊天区域 -->
+  <view class="main-content">
+    <!-- 顶部栏 -->
+    <view class="top-bar">
+      <view class="menu-btn" bindtap="toggleSidebar">☰</view>
+      <view class="current-title">{{currentTitle}}</view>
+      <view class="placeholder"></view>
+    </view>
+
+    <!-- 消息列表 -->
+    <scroll-view 
+      class="messages-view" 
+      scroll-y 
+      scroll-into-view="{{scrollIntoView}}" 
+      scroll-with-animation
+    >
+      <!-- 空状态 -->
+      <view wx:if="{{messages.length === 0 && !loading}}" class="empty-messages">
+        <view class="empty-icon">💭</view>
+        <view class="empty-title">开始新对话</view>
+        <view class="empty-desc">说出你的想法，我会尽力帮助你</view>
+      </view>
+
+      <!-- 消息列表 -->
+      <view class="message-item" wx:for="{{messages}}" wx:key="id" id="msg-{{index}}">
+        <!-- AI消息 -->
+        <view wx:if="{{item.role === 'assistant'}}" class="message-wrapper assistant-message">
+          <view class="avatar">🤖</view>
+          <view class="message-content">
+            <!-- 联网搜索标识 -->
+            <view wx:if="{{item.meta && item.meta.webSearch}}" class="search-badge">
+              <text class="badge-icon">🌐</text>
+              <text class="badge-text">使用了{{item.meta.webSearch.source}}搜索</text>
+            </view>
+            
+            <view class="message-bubble">
+              <rich-text class="message-text" nodes="{{item.formattedContent || item.content}}" user-select="{{true}}"></rich-text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 用户消息 -->
+        <view wx:else class="message-wrapper user-message">
+          <view class="message-content">
+            <view class="message-bubble">
+              <text class="message-text" user-select="{{true}}">{{item.content}}</text>
+            </view>
+          </view>
+          <view class="avatar user-avatar">✌️</view>
+        </view>
+      </view>
+
+      <!-- 加载中提示 -->
+      <view wx:if="{{loading}}" class="message-wrapper assistant-message">
+        <view class="avatar">🤖</view>
+        <view class="message-content">
+          <view class="loading-dots">
+            <view class="dot"></view>
+            <view class="dot"></view>
+            <view class="dot"></view>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+
+    <!-- 输入框 -->
+    <view class="input-wrapper">
+      <!-- 联网搜索开关 -->
+      <view class="search-toggle-bar">
+        <view 
+          class="search-toggle {{enableWebSearch ? 'active' : ''}}"
+          bindtap="toggleWebSearch"
+        >
+          <text class="search-icon">🌐</text>
+          <text class="search-text">联网搜索</text>
+        </view>
+        <text class="search-hint" wx:if="{{enableWebSearch}}">AI将搜索互联网获取最新信息</text>
+      </view>
+
+      <view class="input-container">
+        <textarea 
+          class="input-text" 
+          placeholder="{{enableWebSearch ? '输入问题，AI将联网搜索...' : '输入消息...'}}" 
+          value="{{inputText}}"
+          bindinput="onInput"
+          maxlength="2000"
+          auto-height
+          show-confirm-bar="{{false}}"
+          adjust-position="{{true}}"
+        />
+        <view 
+          class="send-btn {{inputText ? 'active' : ''}}" 
+          bindtap="sendMessage"
+        >
+          <text wx:if="{{!loading}}">⬆</text>
+          <text wx:else>⏸</text>
+        </view>
+      </view>
     </view>
   </view>
+
+  <!-- 遮罩层 -->
+  <view 
+    class="sidebar-mask {{showSidebar ? 'show' : ''}}" 
+    bindtap="toggleSidebar"
+  ></view>
 </view>
 
 

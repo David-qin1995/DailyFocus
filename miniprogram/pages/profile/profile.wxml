@@ -53,7 +53,7 @@
           <view class="trait-bar">
             <view class="trait-fill" style="width: {{item.score * 100}}%"></view>
           </view>
-          <view class="trait-score">{{(item.score * 100).toFixed(0)}}%</view>
+          <view class="trait-score">{{item.scorePercent}}%</view>
         </view>
       </view>
 

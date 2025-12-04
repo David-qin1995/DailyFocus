@@ -3,7 +3,7 @@ App({
     token: '',
     userId: null,
     // 修改为你的云托管API地址
-    apiBaseUrl: 'https://your-service-id.bj.run.tcloudbase.com'
+    apiBaseUrl: 'https://express-041i-205191-6-1390387111.sh.run.tcloudbase.com/'
   },
 
   onLaunch() {

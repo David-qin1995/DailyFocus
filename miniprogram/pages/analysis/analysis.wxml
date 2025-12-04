@@ -38,7 +38,7 @@
     </view>
 
     <view wx:elif="{{reports.length === 0}}" class="empty-container">
-      <image src="../../images/empty.png" class="empty-image" mode="aspectFit"></image>
+      <text class="empty-icon">📊</text>
       <text class="empty-text">还没有分析报告</text>
       <text class="empty-hint">点击上方按钮生成第一份报告</text>
     </view>

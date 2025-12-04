@@ -3,6 +3,7 @@ const { Message, Conversation, UserProfile } = require('../models');
 const { chatCompletion, buildSystemPrompt } = require('../utils/deepseek');
 const { authMiddleware, asyncHandler } = require('../middleware');
 const { Op } = require('sequelize');
+const { webSearch, formatSearchResults, needsWebSearch } = require('../utils/search');
 
 const router = express.Router();
 
@@ -12,10 +13,10 @@ router.use(authMiddleware);
 /**
  * 发送消息
  * POST /api/chat/send
- * Body: { content: "消息内容", conversationId: 可选 }
+ * Body: { content: "消息内容", conversationId: 可选, enableWebSearch: 可选(布尔值) }
  */
 router.post('/send', asyncHandler(async (req, res) => {
-  const { content, conversationId } = req.body;
+  const { content, conversationId, enableWebSearch = false } = req.body;
   const userId = req.userId;
 
   if (!content || content.trim().length === 0) {
@@ -98,6 +99,34 @@ router.post('/send', asyncHandler(async (req, res) => {
       });
     }
 
+    // 检查是否需要联网搜索
+    let searchResults = null;
+    let searchInfo = null;
+    const shouldSearch = enableWebSearch || needsWebSearch(content.trim());
+
+    if (shouldSearch) {
+      console.log('检测到需要联网搜索...');
+      try {
+        searchResults = await webSearch(content.trim(), 5);
+        if (searchResults && searchResults.results) {
+          searchInfo = {
+            source: searchResults.source,
+            count: searchResults.results.length,
+            urls: searchResults.results.map(r => r.url)
+          };
+          
+          // 将搜索结果添加到上下文
+          const searchContext = formatSearchResults(searchResults);
+          messages.push({
+            role: 'system',
+            content: `以下是联网搜索的结果，请基于这些信息回答用户的问题：${searchContext}\n\n请在回答中引用这些搜索结果，并在末尾注明参考来源。`
+          });
+        }
+      } catch (error) {
+        console.error('联网搜索失败:', error);
+      }
+    }
+
     // 添加当前用户消息
     messages.push({
       role: 'user',
@@ -122,7 +151,8 @@ router.post('/send', asyncHandler(async (req, res) => {
       content: aiResponse.content,
       meta: {
         model: aiResponse.model,
-        usage: aiResponse.usage
+        usage: aiResponse.usage,
+        webSearch: searchInfo // 保存搜索信息
       }
     });
 
@@ -141,7 +171,8 @@ router.post('/send', asyncHandler(async (req, res) => {
         assistantMessage: {
           id: assistantMessage.id,
           content: assistantMessage.content,
-          createdAt: assistantMessage.createdAt
+          createdAt: assistantMessage.createdAt,
+          meta: assistantMessage.meta
         }
       },
       message: '发送成功'
@@ -235,6 +266,129 @@ router.post('/conversation', asyncHandler(async (req, res) => {
     data: conversation,
     message: '创建成功'
   });
+}));
+
+/**
+ * 更新会话标题
+ * PUT /api/chat/conversation/:id
+ * Body: { title: "新标题" }
+ */
+router.put('/conversation/:id', asyncHandler(async (req, res) => {
+  const userId = req.userId;
+  const conversationId = req.params.id;
+  const { title } = req.body;
+
+  if (!title || title.trim().length === 0) {
+    return res.status(400).json({
+      code: 400,
+      message: '标题不能为空'
+    });
+  }
+
+  const conversation = await Conversation.findOne({
+    where: { id: conversationId, userId }
+  });
+
+  if (!conversation) {
+    return res.status(404).json({
+      code: 404,
+      message: '会话不存在'
+    });
+  }
+
+  conversation.title = title.trim();
+  await conversation.save();
+
+  res.json({
+    code: 0,
+    data: conversation,
+    message: '更新成功'
+  });
+}));
+
+/**
+ * 生成会话标题
+ * POST /api/chat/conversation/:id/generate-title
+ */
+router.post('/conversation/:id/generate-title', asyncHandler(async (req, res) => {
+  const userId = req.userId;
+  const conversationId = req.params.id;
+
+  const conversation = await Conversation.findOne({
+    where: { id: conversationId, userId }
+  });
+
+  if (!conversation) {
+    return res.status(404).json({
+      code: 404,
+      message: '会话不存在'
+    });
+  }
+
+  // 获取会话的前几条消息
+  const messages = await Message.findAll({
+    where: { conversationId },
+    order: [['createdAt', 'ASC']],
+    limit: 4,
+    attributes: ['role', 'content']
+  });
+
+  if (messages.length === 0) {
+    return res.json({
+      code: 0,
+      data: { title: '新对话' },
+      message: '暂无消息'
+    });
+  }
+
+  try {
+    // 使用AI生成标题
+    const prompt = {
+      role: 'system',
+      content: '你是一个标题生成助手。根据用户和AI的对话内容，生成一个简短、准确、有吸引力的对话标题。标题应该：1）不超过20个字 2）概括对话主题 3）使用中文 4）不要加引号。只返回标题文本，不要其他内容。'
+    };
+
+    const conversationContext = messages.map(m => 
+      `${m.role === 'user' ? '用户' : 'AI'}: ${m.content}`
+    ).join('\n');
+
+    const aiResponse = await chatCompletion([
+      prompt,
+      { role: 'user', content: `请为以下对话生成标题：\n\n${conversationContext}` }
+    ], {
+      temperature: 0.7,
+      max_tokens: 50
+    });
+
+    if (aiResponse.success) {
+      let title = aiResponse.content.trim();
+      // 移除可能的引号
+      title = title.replace(/^["']|["']$/g, '');
+      // 限制长度
+      if (title.length > 30) {
+        title = title.substring(0, 30) + '...';
+      }
+
+      // 更新会话标题
+      conversation.title = title;
+      await conversation.save();
+
+      res.json({
+        code: 0,
+        data: { title },
+        message: '生成成功'
+      });
+    } else {
+      throw new Error('AI生成标题失败');
+    }
+  } catch (error) {
+    console.error('生成标题失败:', error);
+    res.json({
+      code: 0,
+      data: { title: '新对话' },
+      message: '使用默认标题'
+    });
+  }
 }));
 
 /**

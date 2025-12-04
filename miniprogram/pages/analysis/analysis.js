@@ -1,4 +1,5 @@
 const app = getApp();
+const cache = require('../../utils/cache.js');
 
 Page({
   data: {
@@ -24,8 +25,18 @@ Page({
   // 加载报告列表
   async loadReports() {
     try {
-      this.setData({ loading: true });
+      // 先从缓存加载
+      const cachedReports = cache.get('analysis_reports', false);
+      if (cachedReports) {
+        this.setData({
+          reports: cachedReports,
+          loading: false
+        });
+      } else {
+        this.setData({ loading: true });
+      }
 
+      // 后台请求最新数据
       const result = await app.request({
         url: '/api/analysis/reports',
         method: 'GET',
@@ -36,6 +47,9 @@ Page({
       });
 
       if (result.code === 0) {
+        // 更新缓存
+        cache.set('analysis_reports', result.data.reports, 5 * 60 * 1000); // 5分钟过期
+
         this.setData({
           reports: result.data.reports,
           loading: false
@@ -97,7 +111,8 @@ Page({
                 });
               }, 1500);
 
-              // 刷新列表
+              // 清除缓存并刷新列表
+              cache.remove('analysis_reports');
               this.loadReports();
             } else {
               throw new Error(result.message);
@@ -147,6 +162,8 @@ Page({
                 title: '删除成功',
                 icon: 'success'
               });
+              // 清除缓存并刷新列表
+              cache.remove('analysis_reports');
               this.loadReports();
             }
           } catch (error) {

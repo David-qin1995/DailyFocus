@@ -1,4 +1,5 @@
 const app = getApp();
+const cache = require('../../utils/cache.js');
 
 Page({
   data: {
@@ -17,17 +18,42 @@ Page({
 
   async loadData() {
     try {
-      this.setData({ loading: true });
+      // 先从缓存加载
+      const cachedProfile = cache.get('user_profile', false);
+      const cachedStats = cache.get('user_stats', false);
+      
+      if (cachedProfile && cachedStats) {
+        this.setData({
+          profile: cachedProfile,
+          stats: cachedStats,
+          loading: false
+        });
+      } else {
+        this.setData({ loading: true });
+      }
 
-      // 同时请求画像和统计数据
+      // 后台请求最新数据
       const [profileResult, statsResult] = await Promise.all([
         app.request({ url: '/api/profile/get', method: 'GET' }),
         app.request({ url: '/api/profile/stats', method: 'GET' })
       ]);
 
       if (profileResult.code === 0 && statsResult.code === 0) {
+        // 处理画像数据，添加百分比字段
+        const profile = profileResult.data;
+        if (profile.traits && profile.traits.abilities) {
+          profile.traits.abilities = profile.traits.abilities.map(item => ({
+            ...item,
+            scorePercent: (item.score * 100).toFixed(0)
+          }));
+        }
+
+        // 更新缓存
+        cache.set('user_profile', profile, 10 * 60 * 1000); // 10分钟过期
+        cache.set('user_stats', statsResult.data, 10 * 60 * 1000);
+
         this.setData({
-          profile: profileResult.data,
+          profile: profile,
           stats: statsResult.data,
           loading: false
         });
@@ -105,6 +131,9 @@ Page({
                 title: '清空成功',
                 icon: 'success'
               });
+
+              // 清除所有缓存
+              cache.clear();
 
               setTimeout(() => {
                 this.loadData();
