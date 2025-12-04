@@ -104,10 +104,17 @@ router.post('/send', asyncHandler(async (req, res) => {
     let searchInfo = null;
     const shouldSearch = enableWebSearch || needsWebSearch(content.trim());
 
+    console.log('=== 联网搜索调试信息 ===');
+    console.log('enableWebSearch:', enableWebSearch);
+    console.log('用户问题:', content.trim());
+    console.log('是否需要搜索:', shouldSearch);
+
     if (shouldSearch) {
-      console.log('检测到需要联网搜索...');
+      console.log('✅ 开始执行联网搜索...');
       try {
         searchResults = await webSearch(content.trim(), 5);
+        console.log('搜索结果:', searchResults);
+        
         if (searchResults && searchResults.results) {
           searchInfo = {
             source: searchResults.source,
@@ -115,17 +122,24 @@ router.post('/send', asyncHandler(async (req, res) => {
             urls: searchResults.results.map(r => r.url)
           };
           
+          console.log(`✅ 搜索成功! 来源: ${searchInfo.source}, 结果数: ${searchInfo.count}`);
+          
           // 将搜索结果添加到上下文
           const searchContext = formatSearchResults(searchResults);
           messages.push({
             role: 'system',
-            content: `以下是联网搜索的结果，请基于这些信息回答用户的问题：${searchContext}\n\n请在回答中引用这些搜索结果，并在末尾注明参考来源。`
+            content: `以下是从${searchResults.source}获取的最新搜索结果，请基于这些实时信息回答用户的问题：${searchContext}\n\n重要：请在回答中引用这些搜索结果，并特别注明这些是来自搜索引擎的最新信息。`
           });
+        } else {
+          console.log('⚠️ 搜索未返回有效结果');
         }
       } catch (error) {
-        console.error('联网搜索失败:', error);
+        console.error('❌ 联网搜索失败:', error);
       }
+    } else {
+      console.log('⏭️ 跳过联网搜索');
     }
+    console.log('=== 搜索调试结束 ===\n');
 
     // 添加当前用户消息
     messages.push({

@@ -85,10 +85,30 @@ async function serpApiSearch(query, count = 5) {
 }
 
 /**
+ * 使用百度搜索（临时方案，用于测试）
+ * 注意：这只是模拟搜索，返回示例数据
+ */
+async function baiduSearch(query, count = 5) {
+  console.log(`使用模拟搜索: ${query}`);
+  
+  // 返回模拟的搜索结果
+  const mockResults = [
+    {
+      title: `关于"${query}"的最新信息`,
+      url: 'https://www.baidu.com/s?wd=' + encodeURIComponent(query),
+      snippet: `这是关于"${query}"的最新搜索结果。由于API配置问题，当前显示的是模拟数据。请配置 SERPAPI_KEY 或 BING_SEARCH_KEY 以获取真实的搜索结果。`
+    }
+  ];
+  
+  return mockResults;
+}
+
+/**
  * 简单的DuckDuckGo搜索（无需API Key）
  */
 async function duckDuckGoSearch(query, count = 5) {
   try {
+    // DuckDuckGo的Instant Answer API
     const response = await axios.get('https://api.duckduckgo.com/', {
       params: {
         q: query,
@@ -102,20 +122,32 @@ async function duckDuckGoSearch(query, count = 5) {
       }
     });
 
-    if (response.data && response.data.RelatedTopics) {
-      const results = response.data.RelatedTopics
+    const results = [];
+
+    // 处理 Abstract
+    if (response.data.Abstract && response.data.AbstractURL) {
+      results.push({
+        title: response.data.Heading || query,
+        url: response.data.AbstractURL,
+        snippet: response.data.Abstract
+      });
+    }
+
+    // 处理 RelatedTopics
+    if (response.data.RelatedTopics) {
+      const topics = response.data.RelatedTopics
         .filter(item => item.FirstURL && item.Text)
-        .slice(0, count)
+        .slice(0, count - results.length)
         .map(item => ({
-          title: item.Text.split(' - ')[0],
+          title: item.Text.split(' - ')[0] || item.Text.substring(0, 50),
           url: item.FirstURL,
           snippet: item.Text
         }));
       
-      return results.length > 0 ? results : null;
+      results.push(...topics);
     }
-
-    return null;
+      
+    return results.length > 0 ? results : null;
   } catch (error) {
     console.error('DuckDuckGo搜索失败:', error.message);
     return null;
@@ -149,15 +181,17 @@ async function webSearch(query, count = 5) {
     }
   }
 
-  // 3. 最后尝试 DuckDuckGo (无需API Key)
+  // 3. 尝试 DuckDuckGo (无需API Key)
   results = await duckDuckGoSearch(query, count);
   if (results && results.length > 0) {
     console.log(`使用 DuckDuckGo 找到 ${results.length} 个结果`);
     return { source: 'DuckDuckGo', results };
   }
 
-  console.log('所有搜索引擎都未能返回结果');
-  return null;
+  // 4. 最后使用模拟搜索（用于测试）
+  console.log('所有真实搜索引擎都未能返回结果，使用模拟搜索');
+  results = await baiduSearch(query, count);
+  return { source: '模拟搜索（请配置API Key）', results };
 }
 
 /**
@@ -201,6 +235,7 @@ module.exports = {
   needsWebSearch,
   bingSearch,
   serpApiSearch,
-  duckDuckGoSearch
+  duckDuckGoSearch,
+  baiduSearch
 };
 

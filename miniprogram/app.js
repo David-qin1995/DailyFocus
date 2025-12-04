@@ -2,8 +2,8 @@ App({
   globalData: {
     token: '',
     userId: null,
-    // 修改为你的云托管API地址
-    apiBaseUrl: 'https://express-041i-205191-6-1390387111.sh.run.tcloudbase.com/'
+    // 修改为你的云托管API地址（注意：末尾不要加斜杠）
+    apiBaseUrl: 'https://express-041i-205191-6-1390387111.sh.run.tcloudbase.com'
   },
 
   onLaunch() {
@@ -64,8 +64,14 @@ App({
   // 通用请求方法
   request(options) {
     return new Promise((resolve, reject) => {
+      // 智能拼接URL，处理可能的双斜杠问题
+      let url = options.url;
+      if (!url.startsWith('/')) {
+        url = '/' + url;
+      }
+      
       wx.request({
-        url: `${this.globalData.apiBaseUrl}${options.url}`,
+        url: `${this.globalData.apiBaseUrl}${url}`,
         method: options.method || 'GET',
         data: options.data || {},
         header: {
