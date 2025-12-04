@@ -37,9 +37,34 @@ async function chatCompletion(messages, options = {}) {
     };
   } catch (error) {
     console.error('DeepSeek API调用失败:', error.response?.data || error.message);
+    
+    // 处理特定的错误类型
+    let errorMessage = error.message;
+    
+    if (error.response?.data?.error) {
+      const apiError = error.response.data.error;
+      errorMessage = apiError.message || apiError.type || errorMessage;
+      
+      // 处理内容风险错误
+      if (errorMessage.includes('Content Exists Risk') || apiError.type === 'content_policy_violation') {
+        console.warn('⚠️ 内容风险检测触发');
+        errorMessage = '抱歉，这个问题可能涉及敏感内容，请换个方式提问';
+      }
+      
+      // 处理速率限制
+      if (errorMessage.includes('rate_limit') || apiError.type === 'rate_limit_exceeded') {
+        errorMessage = '请求过于频繁，请稍后再试';
+      }
+      
+      // 处理API密钥错误
+      if (errorMessage.includes('invalid_api_key') || errorMessage.includes('Unauthorized')) {
+        errorMessage = 'API密钥配置错误，请联系管理员';
+      }
+    }
+    
     return {
       success: false,
-      error: error.response?.data?.error?.message || error.message
+      error: errorMessage
     };
   }
 }
@@ -58,13 +83,14 @@ function buildSystemPrompt(userProfile = null, preferences = {}) {
     professional: '专业、客观、理性'
   };
 
-  let prompt = `你是一个长期陪伴型的私人AI助手,只对一个固定的用户服务。你的目标是:
+  let prompt = `你是一个友好的AI助手，帮助用户解答问题和提供建议。
 
-1. 通过多轮对话逐渐了解他的性格、习惯、困扰和目标
-2. 用${toneDescriptions[tone]}的方式回应
-3. 在适当的时候帮助他看见自己的优势和进步,而不是只关注问题
-4. 避免进行医疗诊断或标签化判断(如"你有抑郁症"),只能描述现象并建议在需要时寻求专业帮助
-5. 回答要具体、实用,避免空洞的鸡汤
+回复风格: ${toneDescriptions[tone]}
+
+注意事项:
+1. 提供准确、有用的信息
+2. 回答要具体、实用
+3. 保持友好和专业的态度
 
 `;
 

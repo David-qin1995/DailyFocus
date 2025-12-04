@@ -154,7 +154,35 @@ router.post('/send', asyncHandler(async (req, res) => {
     });
 
     if (!aiResponse.success) {
-      throw new Error(aiResponse.error);
+      console.error('❌ AI调用失败:', aiResponse.error);
+      
+      // 如果是内容风险，尝试简化消息后重试
+      if (aiResponse.error.includes('敏感内容') || aiResponse.error.includes('Content Exists Risk')) {
+        console.log('🔄 检测到内容风险，尝试简化消息后重试...');
+        
+        // 移除搜索结果，只保留用户消息
+        const simpleMessages = messages.filter(msg => 
+          msg.role === 'user' || (msg.role === 'system' && !msg.content.includes('搜索结果'))
+        );
+        
+        const retryResponse = await chatCompletion(simpleMessages, {
+          temperature: 0.7,
+          max_tokens: 2000
+        });
+        
+        if (retryResponse.success) {
+          console.log('✅ 重试成功');
+          // 使用重试的结果
+          aiResponse.success = true;
+          aiResponse.content = retryResponse.content;
+          aiResponse.usage = retryResponse.usage;
+          aiResponse.model = retryResponse.model;
+        } else {
+          throw new Error(retryResponse.error);
+        }
+      } else {
+        throw new Error(aiResponse.error);
+      }
     }
 
     // 保存AI回复

@@ -428,10 +428,24 @@ Page({
         loading: false
       });
 
+      // 优化错误提示
+      let errorMsg = '发送失败';
+      if (error.message) {
+        if (error.message.includes('敏感内容')) {
+          errorMsg = '问题可能涉及敏感内容，请换个方式提问';
+        } else if (error.message.includes('频繁')) {
+          errorMsg = '请求过于频繁，请稍后再试';
+        } else if (error.message.includes('网络')) {
+          errorMsg = '网络连接失败，请检查网络';
+        } else {
+          errorMsg = error.message.substring(0, 30);
+        }
+      }
+
       wx.showToast({
-        title: '发送失败',
+        title: errorMsg,
         icon: 'none',
-        duration: 2000
+        duration: 3000
       });
     }
   },
