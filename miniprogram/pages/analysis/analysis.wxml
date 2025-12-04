@@ -1,0 +1,77 @@
+<view class="analysis-container">
+  <!-- 顶部生成区域 -->
+  <view class="generate-section">
+    <view class="section-title">生成新的分析报告</view>
+    
+    <!-- 周期选择 -->
+    <view class="period-selector">
+      <view 
+        class="period-item {{periodType === item.value ? 'active' : ''}}"
+        wx:for="{{periodOptions}}"
+        wx:key="value"
+        data-value="{{item.value}}"
+        bindtap="selectPeriod"
+      >
+        {{item.label}}
+      </view>
+    </view>
+
+    <button 
+      class="generate-btn" 
+      bindtap="generateReport"
+      disabled="{{generating}}"
+    >
+      {{generating ? '分析中...' : '开始分析'}}
+    </button>
+
+    <view class="tip-text">
+      AI将分析您的聊天内容,总结您的问题、优点、改进方向和坚持事项
+    </view>
+  </view>
+
+  <!-- 历史报告列表 -->
+  <view class="reports-section">
+    <view class="section-title">历史报告</view>
+
+    <view wx:if="{{loading}}" class="loading-container">
+      <text>加载中...</text>
+    </view>
+
+    <view wx:elif="{{reports.length === 0}}" class="empty-container">
+      <image src="../../images/empty.png" class="empty-image" mode="aspectFit"></image>
+      <text class="empty-text">还没有分析报告</text>
+      <text class="empty-hint">点击上方按钮生成第一份报告</text>
+    </view>
+
+    <view wx:else class="reports-list">
+      <view 
+        class="report-card"
+        wx:for="{{reports}}"
+        wx:key="id"
+        bindtap="viewReport"
+        data-id="{{item.id}}"
+      >
+        <view class="report-header">
+          <view class="report-type">{{getPeriodText(item.periodType)}}</view>
+          <view class="report-date">{{formatDate(item.createdAt)}}</view>
+        </view>
+        
+        <view class="report-period">
+          {{formatDate(item.startAt)}} ~ {{formatDate(item.endAt)}}
+        </view>
+
+        <view class="report-actions">
+          <text class="view-btn">查看详情</text>
+          <text 
+            class="delete-btn" 
+            catchtap="deleteReport"
+            data-id="{{item.id}}"
+          >
+            删除
+          </text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>
+

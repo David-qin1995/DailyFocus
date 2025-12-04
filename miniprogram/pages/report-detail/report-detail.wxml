@@ -1,0 +1,98 @@
+<view class="report-detail-container">
+  <view wx:if="{{loading}}" class="loading-container">
+    <text>加载中...</text>
+  </view>
+
+  <view wx:else class="report-content">
+    <!-- 报告头部 -->
+    <view class="report-header">
+      <view class="header-title">自我成长分析报告</view>
+      <view class="header-period">
+        {{formatDate(report.startAt)}} ~ {{formatDate(report.endAt)}}
+      </view>
+      <view class="header-date">生成于 {{formatDate(report.createdAt)}}</view>
+    </view>
+
+    <!-- 我的问题 -->
+    <view class="section-card">
+      <view class="card-header">
+        <view class="card-icon">❓</view>
+        <view class="card-title">我的问题</view>
+      </view>
+      <view class="card-content">
+        <view 
+          class="question-item"
+          wx:for="{{report.summary.questions}}"
+          wx:key="index"
+        >
+          <view class="question-topic">{{item.topic}}</view>
+          <view class="question-desc">{{item.description}}</view>
+        </view>
+        <view wx:if="{{report.summary.questions.length === 0}}" class="empty-hint">
+          这段时间没有明显的困扰问题,继续保持!
+        </view>
+      </view>
+    </view>
+
+    <!-- 我的优点 -->
+    <view class="section-card">
+      <view class="card-header">
+        <view class="card-icon">✨</view>
+        <view class="card-title">我的优点</view>
+      </view>
+      <view class="card-content">
+        <view 
+          class="strength-item"
+          wx:for="{{report.summary.strengths}}"
+          wx:key="index"
+        >
+          <view class="bullet">•</view>
+          <text class="strength-text">{{item}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 需要改进 -->
+    <view class="section-card">
+      <view class="card-header">
+        <view class="card-icon">📈</view>
+        <view class="card-title">需要改进</view>
+      </view>
+      <view class="card-content">
+        <view 
+          class="improvement-item"
+          wx:for="{{report.summary.improvements}}"
+          wx:key="index"
+        >
+          <view class="bullet">•</view>
+          <text class="improvement-text">{{item}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 继续坚持 -->
+    <view class="section-card">
+      <view class="card-header">
+        <view class="card-icon">💪</view>
+        <view class="card-title">继续坚持</view>
+      </view>
+      <view class="card-content">
+        <view 
+          class="keep-item"
+          wx:for="{{report.summary.keepDoing}}"
+          wx:key="index"
+        >
+          <view class="bullet">•</view>
+          <text class="keep-text">{{item}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 底部提示 -->
+    <view class="footer-tip">
+      <text class="tip-icon">💡</text>
+      <text class="tip-text">这份报告基于AI分析生成,仅供参考。如有严重情绪困扰,请寻求专业帮助。</text>
+    </view>
+  </view>
+</view>
+

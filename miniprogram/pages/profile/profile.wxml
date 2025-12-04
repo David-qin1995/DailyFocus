@@ -1,0 +1,102 @@
+<view class="profile-container">
+  <view wx:if="{{loading}}" class="loading-container">
+    <text>加载中...</text>
+  </view>
+
+  <view wx:else class="profile-content">
+    <!-- 头部信息卡片 -->
+    <view class="header-card">
+      <view class="avatar-circle">
+        <text class="avatar-icon">👤</text>
+      </view>
+      <view class="user-info">
+        <view class="user-name">我的AI助手</view>
+        <view class="user-desc">专属于你的成长伙伴</view>
+      </view>
+    </view>
+
+    <!-- 统计数据 -->
+    <view class="stats-section">
+      <view class="stat-item">
+        <view class="stat-value">{{stats.totalMessages}}</view>
+        <view class="stat-label">聊天条数</view>
+      </view>
+      <view class="stat-divider"></view>
+      <view class="stat-item">
+        <view class="stat-value">{{stats.totalReports}}</view>
+        <view class="stat-label">分析报告</view>
+      </view>
+      <view class="stat-divider"></view>
+      <view class="stat-item">
+        <view class="stat-value">{{stats.daysSinceJoin}}</view>
+        <view class="stat-label">使用天数</view>
+      </view>
+    </view>
+
+    <!-- 个人画像卡片 -->
+    <view class="section-card">
+      <view class="card-header">
+        <view class="card-title">
+          <text class="title-icon">🎯</text>
+          <text>我的画像</text>
+        </view>
+        <text class="view-detail" bindtap="viewProfileDetail">查看详情</text>
+      </view>
+      
+      <view class="traits-container" wx:if="{{profile.traits && profile.traits.abilities.length > 0}}">
+        <view 
+          class="trait-item"
+          wx:for="{{profile.traits.abilities}}"
+          wx:key="index"
+        >
+          <view class="trait-name">{{item.name}}</view>
+          <view class="trait-bar">
+            <view class="trait-fill" style="width: {{item.score * 100}}%"></view>
+          </view>
+          <view class="trait-score">{{(item.score * 100).toFixed(0)}}%</view>
+        </view>
+      </view>
+
+      <view wx:else class="empty-traits">
+        <text>暂无画像数据,多与AI对话并生成分析报告后会逐渐建立</text>
+      </view>
+    </view>
+
+    <!-- 功能菜单 -->
+    <view class="menu-section">
+      <view class="menu-item" bindtap="exportData">
+        <view class="menu-left">
+          <text class="menu-icon">📥</text>
+          <text class="menu-text">导出数据</text>
+        </view>
+        <text class="menu-arrow">›</text>
+      </view>
+
+      <view class="menu-item" bindtap="clearData">
+        <view class="menu-left">
+          <text class="menu-icon">🗑️</text>
+          <text class="menu-text text-danger">清空所有数据</text>
+        </view>
+        <text class="menu-arrow">›</text>
+      </view>
+    </view>
+
+    <!-- 使用提示 -->
+    <view class="info-card">
+      <view class="info-title">💡 使用提示</view>
+      <view class="info-text">
+        • 与AI自由对话,记录想法和情绪
+        • 定期生成分析报告,了解自己的成长
+        • 所有数据仅你可见,注重隐私保护
+        • 如遇严重情绪问题,请寻求专业帮助
+      </view>
+    </view>
+
+    <!-- 版本信息 -->
+    <view class="version-info">
+      <text>AI Personal Assistant v1.0.0</text>
+      <text>Powered by DeepSeek</text>
+    </view>
+  </view>
+</view>
+

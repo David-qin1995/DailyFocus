@@ -1,0 +1,23 @@
+{
+  "containerPort": 80,
+  "minNum": 0,
+  "maxNum": 5,
+  "cpu": 0.5,
+  "mem": 1,
+  "policyType": "cpu",
+  "policyThreshold": 60,
+  "envParams": {
+    "MYSQL_ADDRESS": "",
+    "MYSQL_USERNAME": "",
+    "MYSQL_PASSWORD": "",
+    "DEEPSEEK_API_KEY": "",
+    "WECHAT_APPID": "",
+    "WECHAT_SECRET": "",
+    "JWT_SECRET": "",
+    "PORT": "80",
+    "NODE_ENV": "production"
+  },
+  "customLogs": "stdout",
+  "dataBaseName": "ai_assistant",
+  "executeSQLs": []
+}

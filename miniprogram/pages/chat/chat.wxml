@@ -1,0 +1,53 @@
+<view class="chat-container">
+  <!-- 消息列表 -->
+  <scroll-view class="messages-view" scroll-y scroll-into-view="{{scrollIntoView}}" scroll-with-animation>
+    <view class="message-item" wx:for="{{messages}}" wx:key="index" id="msg-{{index}}">
+      <!-- 用户消息 -->
+      <view wx:if="{{item.role === 'user'}}" class="message-wrapper user-message">
+        <view class="message-bubble user-bubble">
+          <text class="message-text">{{item.content}}</text>
+        </view>
+      </view>
+
+      <!-- AI消息 -->
+      <view wx:else class="message-wrapper assistant-message">
+        <image class="avatar" src="../../images/ai-avatar.png" mode="aspectFill"></image>
+        <view class="message-bubble assistant-bubble">
+          <text class="message-text">{{item.content}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 加载中提示 -->
+    <view wx:if="{{loading}}" class="loading-wrapper">
+      <view class="loading-dots">
+        <view class="dot"></view>
+        <view class="dot"></view>
+        <view class="dot"></view>
+      </view>
+    </view>
+  </scroll-view>
+
+  <!-- 输入框 -->
+  <view class="input-wrapper">
+    <view class="input-container">
+      <textarea 
+        class="input-text" 
+        placeholder="说说你的想法..." 
+        value="{{inputText}}"
+        bindinput="onInput"
+        maxlength="1000"
+        auto-height
+        show-confirm-bar="{{false}}"
+      />
+      <button 
+        class="send-btn {{inputText ? 'active' : ''}}" 
+        bindtap="sendMessage"
+        disabled="{{loading}}"
+      >
+        发送
+      </button>
+    </view>
+  </view>
+</view>
+
